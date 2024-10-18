@@ -1,0 +1,3 @@
+/home/alex/Desktop/imagenesMedicas/tareas/cpp/1023/CMakeFiles/Demo.dir
+/home/alex/Desktop/imagenesMedicas/tareas/cpp/1023/CMakeFiles/edit_cache.dir
+/home/alex/Desktop/imagenesMedicas/tareas/cpp/1023/CMakeFiles/rebuild_cache.dir
