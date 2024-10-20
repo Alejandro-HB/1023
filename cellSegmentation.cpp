@@ -1,25 +1,22 @@
 #include <iostream>
-using namespace std;
-
-//#include <opencv2/opencv.hpp>
-#include <opencv2/core.hpp>
-//En core viene el contenedor mat, usado para contener una imagen
 #include <opencv2/highgui.hpp>
 #include<opencv2/imgproc.hpp>
 
+
+using namespace std;
 using namespace cv;
 
-void splitChannels(const Mat &src);
-void splitChannelsHSV(const Mat &src, Mat &dst);
-Mat imageProcessing(Mat &grayImage, int th);
+void hbSplitChannelsHSV(const Mat &src, Mat &dst);
+Mat hbImageProcessing(Mat &grayImage, int th);
 
 int main(){
     //Reading image
     string filename="./cvImagesCell/113.bmp";
-    //string filename="../../../cvImagesMed/retine.jpg";
-    //string filename="../../../imagesMed/chameleon.jpg";
+    //string filename="./cvImagesCell/102.bmp";
+    //string filename="./cvImagesCell/110.bmp";
+
     Mat src=imread(filename, IMREAD_COLOR);
-    Mat grayImage, grayImage2, hsvImage, res1, res2;
+    Mat grayImage, hsvImage, res1, res2, finalResult;
 
     
     //Verify if there are data in the image
@@ -28,36 +25,32 @@ int main(){
         return -1;
     }
 
-    cout<<src.size;
-    //Gray image
-    //cvtColor(src, grayImage, COLOR_BGR2GRAY);
-    //imageProcessing(grayImage);
-    //splitChannels(src);
 
     cvtColor(src,  hsvImage, COLOR_BGR2HSV_FULL);
-    splitChannelsHSV(hsvImage, grayImage);
-    res1=imageProcessing(grayImage, 245);
-    res2=imageProcessing(grayImage, 205);
-    //Aplying negative
-    res2=Scalar::all(255)-res2;
-    Mat res=res1+res2;
-    //Aplying negative
-    res=Scalar::all(255)-res;
-    namedWindow("result", WINDOW_NORMAL);
-    imshow("result", res);
-
-    //namedWindow("Input image",  WINDOW_NORMAL);
-    //imshow("Input image", grayImage);
+    hbSplitChannelsHSV(hsvImage, grayImage);
+    res1=hbImageProcessing(grayImage,90);
+    res2=hbImageProcessing(grayImage, 130);
     
+    //
+    res1=res1-100;
+    //Showing res1 and res2
+    namedWindow("res1", WINDOW_NORMAL);
+    imshow("res1", res1);
+    namedWindow("res2", WINDOW_NORMAL);
+    imshow("res2", res2);
+    //res2=Scalar::all(255)-res2;
+    finalResult=res1+res2;
 
-    
+    //Showing final result
+    namedWindow("Final result", WINDOW_NORMAL);
+    imshow("Final result", finalResult);
+    imwrite("./cellDetector.bmp", finalResult);
 
     waitKey(0);
     return 0;
 }
 
-
-void splitChannels(const Mat &src){
+void hbSplitChannelsHSV(const Mat &src, Mat &dst){
     //Verify if src is 3 channel image
     if(src.channels()!=3){
         cout<<"A 3 channel image is needed to work";
@@ -65,44 +58,15 @@ void splitChannels(const Mat &src){
     }
     cout<<"Image is a 3 channel image\n";
     //imshow("Source image",src);
+    vector<Mat>ch, hsvCh;
+    Mat roiImage, blueMask, hsvBlurredImageColor;
+    int kernelSize=71;
 
-    vector<Mat>ch;
-    Mat blueImage;
     //Split image into its 3 channels
     split(src, ch);
+    split(src,  hsvCh);
 
-    //Showing channel
-    imshow("Blue channel", ch[0]);
-    imshow("Green channel", ch[1]);
-    imshow("Red channel", ch[2]);
-
-    //Merge channels to see blue color
-    ch[1]=0;
-    ch[2]=0;
-    merge(ch, blueImage);
-
-    namedWindow("Blue image",  WINDOW_NORMAL);
-    imshow("Blue image", blueImage);
-
-    
-    waitKey(0);
-    destroyAllWindows();
-}
-
-void splitChannelsHSV(const Mat &src, Mat &dst){
-    //Verify if src is 3 channel image
-    if(src.channels()!=3){
-        cout<<"A 3 channel image is needed to work";
-        return;
-    }
-    cout<<"Image is a 3 channel image\n";
-    //imshow("Source image",src);
-    vector<Mat>ch;
-    Mat roiImage, blueMask;
-    //Split image into its 3 channels
-    split(src, ch);
-
-    //Showing channel
+    //Showing HSV channel
     namedWindow("H channel", WINDOW_NORMAL);
     namedWindow("S channel",  WINDOW_NORMAL);
     namedWindow("V channel",  WINDOW_NORMAL);
@@ -110,84 +74,89 @@ void splitChannelsHSV(const Mat &src, Mat &dst){
     imshow("S channel", ch[1]);
     imshow("V channel", ch[2]);
 
-    dst=ch[1];
-    //normalize(dst, dst, 0, 255, NORM_MINMAX, CV_8UC1);
-    equalizeHist(dst, dst);
-    namedWindow("normalized dst", WINDOW_NORMAL);
-    imshow("normalized dst", dst);
+    //Median blur to each channel
+    cout<<"medianblur to channel S applied\n";
+    medianBlur(ch[0], hsvCh[0], kernelSize);
+    medianBlur(ch[1], hsvCh[1], kernelSize);
+    medianBlur(ch[2], hsvCh[2], kernelSize);
+
+    //Show HSV blurred channels
+    namedWindow("Blurred H channel",  WINDOW_NORMAL);
+    namedWindow("Blurred S channel",  WINDOW_NORMAL);
+    namedWindow("Blurred V channel",  WINDOW_NORMAL);
+    imshow("Blurred H channel", hsvCh[0]);
+    imshow("Blurred S channel", hsvCh[1]);
+    imshow("Blurred V channel", hsvCh[2]);
+
+    //Using S channel for  thresholding
+    dst=hsvCh[1];
     
-    Mat blue_mask = Mat::zeros(src.size(), CV_8UC1);  // Initialize mask
-    for (int i = 0; i < src.rows; ++i) {
-        for (int j = 0; j < src.cols; ++j) {
-            int hue = ch[0].at<uchar>(i, j);  // H channel
-            int sat = ch[1].at<uchar>(i, j);  // S channel
-            int val = ch[2].at<uchar>(i, j);  // V channel
+    //Merge blurredImage  channels for image showing
+    merge(hsvCh, hsvBlurredImageColor);
 
-            // Check for blue hue range (tweak for your case)
-            if (hue >= 230 && hue <= 240 && sat >= 50 && val >= 50) {
-                blue_mask.at<uchar>(i, j) = 255;  // Mark pixel as blue
-            }
-        }
-        }
-    //Scalar lower_blue(240, 60, 70);  // Darker blue range
-    //Scalar upper_blue(240, 30, 70);
-    //inRange(src, lower_blue, upper_blue, blueMask);
-    namedWindow("blueMask", WINDOW_NORMAL);
-    imshow("blueMask", blue_mask);
+    //Switch  to BGR color space
+    cvtColor(hsvBlurredImageColor, hsvBlurredImageColor, COLOR_HSV2BGR);
+    vector<Mat> ch2;
+    split(hsvBlurredImageColor, ch2);
+
+    //Showing blurred image
+    namedWindow("hsvBlurredImageColor", WINDOW_NORMAL);
+    imshow("hsvBlurredImageColor", hsvBlurredImageColor);
+
+    
+    //Trying Color mask (not good results)
+    //Mat red_mask = Mat::zeros(src.size(), CV_8UC1);  // Initialize mask
+    //Mat brown_mask = Mat::zeros(src.size(), CV_8UC1);  // Initialize mask
+    
+    //red_mask
+    //for (int i = 0; i < src.rows; ++i) {
+    //    for (int j = 0; j < src.cols; ++j) {
+    //        int b = ch2[0].at<uchar>(i, j);  // H channel
+    //        int g = ch2[1].at<uchar>(i, j);  // S channel
+    //        int r = ch2[2].at<uchar>(i, j);  // V channel
+//
+    //        // Check for blue hue range (tweak for your case)
+    //        if (r >= 168/*168*/ && r <= 180 && g >= 80 && g <=130 && b >= 100 && b<=130) {
+    //            //cout<<"Pixel blanco\n";
+    //            red_mask.at<uchar>(i, j) = 255;  // Mark pixel as blue
+    //        }
+    //    }
+    //    }
 
 
+    //brown_mask
+    //for (int i = 0; i < src.rows; ++i) {
+    //    for (int j = 0; j < src.cols; ++j) {
+    //        int b = ch2[0].at<uchar>(i, j);  // H channel
+    //        int g = ch2[1].at<uchar>(i, j);  // S channel
+    //        int r = ch2[2].at<uchar>(i, j);  // V channel
+//
+    //        // Check for blue hue range (tweak for your case)
+    //        if (r >= 135/*168*/ && r <= 160 && g >= 76 && g <=101 && b >= 44 && b<=64) {
+    //            //cout<<"Pixel blanco\n";
+    //            brown_mask.at<uchar>(i, j) = 255;  // Mark pixel as blue
+    //        }
+    //    }
+    //    }
+
+    //namedWindow("redMask", WINDOW_NORMAL);
+    //imshow("redMask", red_mask);
 
 
-    //Merge channels to see blue color
-    //ch[1]=0;
-    //ch[2]=0;
-    //merge(ch, blueImage);
-
-    //namedWindow("Blue image",  WINDOW_NORMAL);
-    //imshow("Blue image", blueImage);
-
+    //namedWindow("brownMask", WINDOW_NORMAL);
+    //imshow("brownMask", brown_mask);
     
     waitKey(0);
     destroyAllWindows();
 }
 
-Mat imageProcessing(Mat &grayImage, int th){
-    //Aplying median blur
-    unsigned int kernelSize=151;
-    Mat blurredImage, srcF;
-    //Meadian blur means that uses median to compute the  value of the pixel
-    //medianBlur(grayImage, blurredImage, kernelSize);
-    GaussianBlur(grayImage, blurredImage, Size(kernelSize, kernelSize), 0);
-    namedWindow("Blurred image", WINDOW_NORMAL);
-    imshow("Blurred image", blurredImage);
-    //imwrite("./blurred113");
-
-    //namedWindow("Median blur image",   WINDOW_NORMAL);
-    //imshow("Median blur image", dst2);
+Mat hbImageProcessing(Mat &grayImage, int th){
+    Mat blurredImage, thresholdImage;
 
     //Aplying thresholding
-    Mat thresholdImage;
-    //int th=245;
-    //Scalar ave=mean(grayImage);
-    //int th=(int)ave.val[0];
                 //in, out, th, maxvalue, thmode
-    threshold(blurredImage, thresholdImage, th, 255, THRESH_BINARY);
-    namedWindow("Thresholded image", WINDOW_NORMAL);
-    imshow("Thresholded image", thresholdImage);
-    waitKey(0);
+    threshold(grayImage, thresholdImage, th, 255, THRESH_BINARY);
     return  thresholdImage;
-    //thresholdImage.convertTo(srcF, CV_32F);
-////
-    //Mat kernel4=(Mat_<double>(3,3)<<    -1, -1, -1
-    //                                    -1,  8, -1
-    //                                    -1, -1, -1);
-//
-    //Mat dst4;
-    //filter2D(srcF, dst4, -1, kernel4, Point(-1, -1), 0, BORDER_DEFAULT);
-//
-    //normalize(dst4, dst4, 0, 255, NORM_MINMAX,  CV_8UC1);
-    //equalizeHist(dst4, dst4);
-    //namedWindow("High-pass filter 4 image",   WINDOW_NORMAL);
-    //imshow("High-pass filter 4 image", dst4);
+
 }
 
