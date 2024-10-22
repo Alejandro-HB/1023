@@ -11,9 +11,9 @@ Mat hbImageProcessing(Mat &grayImage, int th);
 
 int main(){
     //Reading image
-    string filename="./cvImagesCell/113.bmp";
+    //string filename="./cvImagesCell/113.bmp";
     //string filename="./cvImagesCell/102.bmp";
-    //string filename="./cvImagesCell/110.bmp";
+    string filename="./cvImagesCell/110.bmp";
 
     Mat src=imread(filename, IMREAD_COLOR);
     Mat grayImage, hsvImage, res1, res2, finalResult;
@@ -24,7 +24,8 @@ int main(){
         cout<<"\nUnable to read input image";
         return -1;
     }
-
+    //Saving src image
+    imwrite("./cvImagesCell/src.png", src);
 
     cvtColor(src,  hsvImage, COLOR_BGR2HSV_FULL);
     hbSplitChannelsHSV(hsvImage, grayImage);
@@ -40,6 +41,11 @@ int main(){
     imshow("res2", res2);
     //res2=Scalar::all(255)-res2;
     finalResult=res1+res2;
+
+    //Saving  final results
+    imwrite("./113res1.png", res1);
+    imwrite("./113res2.png", res2);
+    imwrite("./113final.png", finalResult);
 
     //Showing final result
     namedWindow("Final result", WINDOW_NORMAL);
@@ -73,12 +79,21 @@ void hbSplitChannelsHSV(const Mat &src, Mat &dst){
     imshow("H channel", ch[0]);
     imshow("S channel", ch[1]);
     imshow("V channel", ch[2]);
+    //Saving channels
+    imwrite("./Hchannel.png", ch[0]);
+    imwrite("./Schannel.png", ch[1]);
+    imwrite("./Vchannel.png", ch[2]);
 
     //Median blur to each channel
     cout<<"medianblur to channel S applied\n";
     medianBlur(ch[0], hsvCh[0], kernelSize);
     medianBlur(ch[1], hsvCh[1], kernelSize);
     medianBlur(ch[2], hsvCh[2], kernelSize);
+
+    //Saving  blurred channels
+    imwrite("./Hblurredchannel.png", hsvCh[0]);
+    imwrite("./Sblurredchannel.png", hsvCh[1]);
+    imwrite("./Vblurredchannel.png", hsvCh[2]);
 
     //Show HSV blurred channels
     namedWindow("Blurred H channel",  WINDOW_NORMAL);
@@ -96,8 +111,6 @@ void hbSplitChannelsHSV(const Mat &src, Mat &dst){
 
     //Switch  to BGR color space
     cvtColor(hsvBlurredImageColor, hsvBlurredImageColor, COLOR_HSV2BGR);
-    vector<Mat> ch2;
-    split(hsvBlurredImageColor, ch2);
 
     //Showing blurred image
     namedWindow("hsvBlurredImageColor", WINDOW_NORMAL);
@@ -105,6 +118,8 @@ void hbSplitChannelsHSV(const Mat &src, Mat &dst){
 
     
     //Trying Color mask (not good results)
+    //vector<Mat> ch2;
+    //split(hsvBlurredImageColor, ch2);
     //Mat red_mask = Mat::zeros(src.size(), CV_8UC1);  // Initialize mask
     //Mat brown_mask = Mat::zeros(src.size(), CV_8UC1);  // Initialize mask
     
@@ -151,7 +166,7 @@ void hbSplitChannelsHSV(const Mat &src, Mat &dst){
 }
 
 Mat hbImageProcessing(Mat &grayImage, int th){
-    Mat blurredImage, thresholdImage;
+    Mat thresholdImage;
 
     //Aplying thresholding
                 //in, out, th, maxvalue, thmode
